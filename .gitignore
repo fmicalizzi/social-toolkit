@@ -1,0 +1,29 @@
+# ── Entorno virtual ──
+venv/
+
+# ── Sesion del browser (NUNCA commitear — contiene cookies de sesion activa) ──
+browser_profile/
+cookies.txt
+
+# ── Datos extraidos (locales, pueden ser pesados y privados) ──
+output/
+
+# ── Python ──
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+
+# ── macOS ──
+.DS_Store
+.AppleDouble
+
+# ── IDE ──
+.vscode/
+.idea/
+*.swp
+
+# ── Logs ──
+*.log

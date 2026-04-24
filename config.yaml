@@ -1,0 +1,59 @@
+browser:
+  profile_dir: "browser_profile"
+  headless: false
+  user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+  locale: "es-MX"
+  viewport:
+    width: 1280
+    height: 800
+
+rate_limits:
+  instagram:
+    scrape_delay: [6, 14]
+    download_delay: [8, 18]
+    scroll_delay: [1.5, 3.0]
+    batch_size: 50
+    batch_pause: [120, 180]
+
+  youtube:
+    scrape_delay: [2, 5]
+    download_delay: [5, 12]
+    batch_size: 50
+    batch_pause: [60, 120]
+
+  tiktok:
+    scrape_delay: [3, 8]
+    download_delay: [5, 12]
+    scroll_delay: [1.5, 3.0]
+    batch_size: 50
+    batch_pause: [90, 150]
+
+  facebook:
+    scrape_delay: [6, 14]
+    download_delay: [8, 18]
+    scroll_delay: [2.0, 4.0]
+    batch_size: 40
+    batch_pause: [120, 200]
+
+  twitter:
+    scrape_delay: [4, 10]
+    download_delay: [5, 12]
+    scroll_delay: [1.5, 3.0]
+    batch_size: 50
+    batch_pause: [90, 150]
+
+downloads:
+  ytdlp_binary: "venv/bin/yt-dlp"
+  cookies_file: "browser_profile/cookies.txt"
+
+conversion:
+  ffmpeg: "/opt/homebrew/bin/ffmpeg"
+  ffprobe: "/opt/homebrew/bin/ffprobe"
+  codec: "libx264"
+  crf: 20
+  preset: "fast"
+  audio_codec: "aac"
+  audio_bitrate: "128k"
+
+output:
+  base_dir: "output"
