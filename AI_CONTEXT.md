@@ -1,8 +1,16 @@
 # Social Media Toolkit — Contexto para Agentes de IA
 
-> Este es el archivo maestro del repositorio. CLAUDE.md, AGENTS.md y qwen.md
-> apuntan aquí. Todo lo que un agente de IA necesita saber para trabajar
-> en este proyecto está en este archivo.
+## Mapa de documentación del repositorio
+
+| Archivo | Para quién | Contenido |
+|---------|-----------|-----------|
+| [`README.md`](./README.md) | Usuarios humanos | Instalación, primer uso, comandos, tiempos, troubleshooting |
+| **`AI_CONTEXT.md`** (este archivo) | Agentes de IA | Arquitectura, pipeline, reglas de diseño, cómo extender |
+| [`CLAUDE.md`](./CLAUDE.md) | Claude Code | Apunta a este archivo + reglas específicas de Claude |
+| [`AGENTS.md`](./AGENTS.md) | Codex / agentes generales | Apunta a este archivo + reglas para agentes |
+| [`qwen.md`](./qwen.md) | Qwen y otros modelos | Apunta a este archivo + resumen ejecutivo |
+
+**Regla**: contenido de uso va en `README.md`. Contenido de arquitectura va aquí. Sin duplicar entre los dos.
 
 ---
 

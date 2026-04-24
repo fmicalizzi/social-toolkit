@@ -2,67 +2,113 @@
 
 Toolkit portable para extraccion de datos y descarga de contenido desde redes sociales.
 
-Pipeline completo por perfil: **discovery → metadata → CSV → descarga de media (imagenes + videos) → conversion H.264**
+Pipeline: **discovery → metadata → CSV → imagenes + videos → conversion H.264**
 
-Plataformas implementadas: **Instagram · Facebook · TikTok · YouTube · X (Twitter)**
+Plataformas: **Instagram · Facebook · TikTok · YouTube · X (Twitter)**
+
+> Para agentes de IA y contribuidores: ver [`AI_CONTEXT.md`](./AI_CONTEXT.md) — arquitectura, reglas de diseño, cómo extender el toolkit.
 
 ---
 
-## Requisitos del sistema
+## Requisitos
 
-| Requisito | Version minima | Instalacion |
-|-----------|---------------|-------------|
-| Python | >= 3.10 | `brew install python` o python.org |
+| Requisito | Version | Instalacion |
+|-----------|---------|-------------|
+| Python | >= 3.10 | `brew install python` (macOS) |
 | ffmpeg | cualquiera | `brew install ffmpeg` (macOS) / `apt install ffmpeg` (Linux) |
-| macOS / Linux | macOS 14+ recomendado | — |
 
 ---
 
 ## Instalacion
 
 ```bash
-# 1. Clonar o descargar el repositorio
 cd social-toolkit
-
-# 2. Ejecutar setup (crea venv, instala deps Python, descarga Chromium)
 bash setup.sh
+```
 
-# 3. Verificar
+El setup instala las dependencias Python, descarga Chromium (Playwright), y crea las carpetas necesarias. Es idempotente: se puede correr multiples veces sin riesgo.
+
+**Verificar que funciona:**
+```bash
 venv/bin/python3 cli.py --help
 ```
 
-El setup es idempotente: se puede ejecutar multiples veces sin riesgo.
+### Verificar ffmpeg antes de usar
 
-### Reutilizar sesion de un proyecto anterior
+El setup avisa si ffmpeg no esta en la ruta esperada. Si la ruta es distinta a `/opt/homebrew/bin/ffmpeg`, actualizar `config.yaml`:
 
-Si ya tienes un `browser_profile/` con sesiones activas:
+```yaml
+conversion:
+  ffmpeg:  "/ruta/que/reporto/el/setup"
+  ffprobe: "/ruta/que/reporto/el/setup/ffprobe"
+```
+
+Si no se actualiza, la descarga y el scraping funcionan, pero la conversion de video a H.264 falla silenciosamente.
+
+---
+
+## Primer uso: paso a paso
+
+> Hacer esto antes de un snapshot completo. Confirma que el login funciona y el toolkit opera correctamente.
 
 ```bash
-bash setup.sh /ruta/a/browser_profile_existente
+# 1. Primer snapshot de prueba — limita a 5 posts para probar rapido
+venv/bin/python3 cli.py instagram snapshot @alguna_cuenta_publica --max-posts 5
 ```
+
+**Lo que va a pasar:**
+
+1. Se abre una ventana de Chromium
+2. Si nunca iniciaste sesion, te lleva a `instagram.com/login`
+3. **Logueate manualmente** en esa ventana (usuario y contraseña de Instagram)
+4. Cuando estes dentro de Instagram, **vuelve a la terminal** y presiona `Enter`
+5. El toolkit empieza a scrollear el perfil y extraer datos
+6. Al terminar, vas a ver el output en `output/instagram/@cuenta/`
+
+La sesion queda guardada en `browser_profile/` y dura ~30-90 dias. Los proximos usos no piden login.
+
+**Revisar el resultado:**
+```bash
+# Ver el CSV generado
+open output/instagram/@cuenta/snapshot_*.csv
+
+# Ver metadata de un post
+ls output/instagram/@cuenta/metadata/
+```
+
+Si el CSV tiene datos (fecha, caption, likes), todo funciona. Ahora podes correr sin limite.
+
+### Plataformas que NO requieren login
+
+TikTok, YouTube y Twitter funcionan sin login desde el primer uso.
 
 ---
 
 ## Uso rapido
 
 ```bash
-# Instagram
+# Instagram (requiere login la primera vez)
 venv/bin/python3 cli.py instagram snapshot @username
 
-# Facebook
-venv/bin/python3 cli.py facebook snapshot nombre_de_pagina
+# Facebook (requiere login la primera vez)
+venv/bin/python3 cli.py facebook snapshot vivaldi.ve
 
-# TikTok
+# TikTok (sin login)
 venv/bin/python3 cli.py tiktok snapshot @username
 
-# YouTube
+# YouTube (sin login)
 venv/bin/python3 cli.py youtube snapshot https://youtube.com/@handle
 
-# X (Twitter)
+# X / Twitter (sin login)
 venv/bin/python3 cli.py twitter snapshot @username
 ```
 
-**La primera vez** que uses Instagram o Facebook se abre un browser para login manual. La sesion se guarda en `browser_profile/` y dura ~30-90 dias. TikTok, YouTube y Twitter no requieren login.
+**Tip**: para no escribir `venv/bin/python3 cli.py` cada vez, agregar un alias:
+```bash
+alias smt="venv/bin/python3 $(pwd)/cli.py"
+# Luego:
+smt instagram snapshot @username
+```
 
 ---
 
@@ -73,23 +119,25 @@ venv/bin/python3 cli.py twitter snapshot @username
 | Comando | Descripcion |
 |---------|-------------|
 | `instagram snapshot @user` | Pipeline completo: discover + metadata + CSV + media |
-| `instagram snapshot @user --no-download` | Solo metadata y CSV |
-| `instagram snapshot @user --max-posts 50` | Limitar a 50 posts |
-| `instagram discover @user` | Solo scrollear perfil y extraer IDs |
-| `instagram scrape --from-file urls.txt` | Scrape desde archivo de URLs o chat exportado |
+| `instagram snapshot @user --no-download` | Solo metadata y CSV, sin descargar archivos |
+| `instagram snapshot @user --max-posts 50` | Limitar a N posts (util para pruebas) |
+| `instagram discover @user` | Solo scrollear el perfil y guardar los IDs de posts |
+| `instagram scrape --from-file chat.txt` | Extraer metadata de URLs en un archivo de texto |
 | `instagram download @user` | Descargar media (fotos + videos) de un perfil ya scrapeado |
-| `instagram extract-cache @user` | Extraer imagenes del cache del browser sin navegar |
+| `instagram extract-cache @user` | Extraer imagenes del cache del browser sin navegar a ninguna URL |
 
 ### Facebook
 
+El `pagename` es el slug de la URL: `facebook.com/vivaldi.ve` → `vivaldi.ve`
+
 | Comando | Descripcion |
 |---------|-------------|
-| `facebook snapshot pagename` | Pipeline completo |
-| `facebook snapshot pagename --no-download` | Solo metadata y CSV |
-| `facebook snapshot pagename --max-posts 100` | Limitar posts |
-| `facebook discover pagename` | Solo scroll del feed para descubrir posts |
-| `facebook download pagename` | Descargar media (fotos + videos) |
-| `facebook extract-cache pagename` | Extraer del cache del browser |
+| `facebook snapshot vivaldi.ve` | Pipeline completo |
+| `facebook snapshot vivaldi.ve --no-download` | Solo metadata y CSV |
+| `facebook snapshot vivaldi.ve --max-posts 100` | Limitar posts |
+| `facebook discover vivaldi.ve` | Solo scroll del feed |
+| `facebook download vivaldi.ve` | Descargar media (fotos + videos) |
+| `facebook extract-cache vivaldi.ve` | Extraer fotos del cache del browser (instantaneo, sin red) |
 
 ### TikTok
 
@@ -122,8 +170,40 @@ venv/bin/python3 cli.py twitter snapshot @username
 
 | Comando | Descripcion |
 |---------|-------------|
-| `cookies export` | Exportar cookies del browser a formato Netscape para yt-dlp |
-| `convert /path/to/videos/` | Convertir todos los videos no-H.264 en un directorio |
+| `cookies export` | Re-exportar cookies del browser (usar si yt-dlp falla con autenticacion) |
+| `convert /ruta/a/carpeta/` | Convertir todos los videos en una carpeta a H.264 |
+
+---
+
+## Tiempos estimados
+
+Estos tiempos son con los delays configurados por defecto (para no ser detectados como bot):
+
+| Plataforma | Perfil tipico | Metadata | Descarga media |
+|------------|--------------|----------|----------------|
+| Instagram | 200 posts | ~45 min | ~2-4 hs (fotos full-size) |
+| Facebook | 300 posts | ~6 hs | ~30 min (cache) + ~30 min (faltantes) |
+| TikTok | 100 videos | ~15 min | ~20 min |
+| YouTube | 50 videos | ~5 min | segun duracion |
+| Twitter | 500 tweets | ~1 hs | variable |
+
+**Todos los procesos son reanudables.** Si se interrumpen con Ctrl+C, el proximo `snapshot` continua desde donde quedo — no repite lo que ya proceso.
+
+---
+
+## Sobre `extract-cache`
+
+Este comando extrae imagenes que el browser ya descargo durante el scraping de metadata, directo del cache de Chromium. **No hace ninguna request HTTP.**
+
+Cuando usarlo:
+```bash
+# Flujo optimo para Facebook (la mayoria de fotos salen del cache):
+venv/bin/python3 cli.py facebook snapshot vivaldi.ve --no-download  # scraping primero
+venv/bin/python3 cli.py facebook extract-cache vivaldi.ve           # extraer cache (instantaneo)
+venv/bin/python3 cli.py facebook download vivaldi.ve                # solo descarga lo que falto
+```
+
+El `facebook download` ya hace este proceso automaticamente en orden. `extract-cache` existe para correrlo en forma independiente.
 
 ---
 
@@ -132,185 +212,86 @@ venv/bin/python3 cli.py twitter snapshot @username
 ```
 output/
 └── {platform}/
-    └── @username/
-        ├── profile.json              # Bio, followers, etc.
-        ├── discovered.json           # Checkpoint de progreso (IDs descubiertos)
-        ├── snapshot_YYYY-MM-DD.csv   # Snapshot completo con metricas
-        ├── metadata/                 # Un JSON por post
-        │   ├── ABC123.json
-        │   └── ...
-        └── media/                    # Imagenes y videos descargados
+    └── @username/              (o slug para Facebook)
+        ├── profile.json        # Datos del perfil
+        ├── discovered.json     # Checkpoint de progreso
+        ├── snapshot_YYYY-MM-DD.csv
+        ├── metadata/           # Un JSON por post
+        └── media/              # Fotos y videos descargados
             ├── 2025-01-15_ABC123.jpg
             ├── 2025-02-20_DEF456.mp4
-            └── _post_mapping.json    # Mapa post_id → archivo (generado automaticamente)
+            └── _post_mapping.json
 ```
 
-### Columnas del CSV (estandarizadas en todas las plataformas)
+### Columnas del CSV
 
 | Campo | Descripcion |
 |-------|-------------|
 | `platform` | instagram, facebook, tiktok, youtube, twitter |
-| `shortcode` | ID unico del post/video |
+| `shortcode` | ID unico del post |
 | `url` | URL completa |
 | `username` | Nombre de la cuenta |
-| `date` | Fecha YYYY-MM-DD |
+| `date` | YYYY-MM-DD |
 | `content_type` | post, reel, video, tweet, etc. |
 | `is_video` | True / False |
 | `likes` | Likes (int) |
 | `comments` | Comentarios (int) |
 | `views` | Reproducciones (int) |
 | `shares` | Compartidos (int) |
-| `hashtags` | Hashtags separados por coma |
+| `hashtags` | Separados por coma |
 | `caption` | Texto del post (max 500 chars) |
 | `scraped_at` | Timestamp del scraping |
 
 ---
 
-## Descarga de media: estrategia inteligente
-
-El comando `download` (y el paso 4 del `snapshot`) usa una estrategia en capas para evitar re-descargar contenido:
-
-### 1. Cache del browser (gratis, sin red)
-
-Antes de navegar, escanea `browser_profile/Default/Cache/`. Las imagenes que cargo el browser durante el scraping de metadata ya estan guardadas ahi. Se extraen en segundos sin ninguna request HTTP.
-
-- **Facebook**: recupera tipicamente 90%+ de las fotos del perfil
-- **Instagram**: recupera thumbnails (no full-size)
-
-### 2. Browser solo para lo que falta
-
-Para cada post pendiente:
-1. Visita la URL del post con el browser
-2. Extrae `og:image` (CDN URL de la imagen)
-3. Compara el CDN filename con lo que ya esta en `media/`
-4. Si ya existe (del cache) → registra el mapping, NO descarga
-5. Si no existe → descarga con urllib
-
-Solo se hacen descargas reales para los posts genuinamente ausentes.
-
-### 3. Videos con yt-dlp
-
-Revisa `media/` y `videos/` (legacy) antes de descargar. Usa cookies del browser para autenticacion.
-
-### Idempotencia completa
-
-Cada fase detecta lo que ya se proceso y lo salta:
-
-| Fase | Checkpoint |
-|------|-----------|
-| Discovery | `discovered.json` (guarda cada 50 items) |
-| Metadata | archivos en `metadata/` |
-| Media (cache) | si `media/` tiene archivos, no re-extrae |
-| Media (browser) | CDN filename ya en `media/` |
-| Media (videos) | post_id en nombre de archivo en `media/` o `videos/` |
-| Conversion | codec detectado con ffprobe, salta H.264 existentes |
-
----
-
 ## Configuracion (`config.yaml`)
+
+La mayoria de valores funcionan bien por defecto. Los que puede ser necesario cambiar:
 
 ```yaml
 browser:
-  headless: false             # true = sin ventana visible
-  locale: "es-MX"             # Idioma del navegador
-
-rate_limits:
-  instagram:
-    scrape_delay: [6, 14]     # Seg. entre posts (rango aleatorio)
-    download_delay: [8, 18]
-    scroll_delay: [1.5, 3.0]
-    batch_size: 50             # Posts antes de pausa larga
-    batch_pause: [120, 180]    # Seg. de pausa por batch
+  headless: false       # cambiar a true para correr sin ventana (solo si la sesion es valida)
+  locale: "es-MX"       # idioma del browser (afecta fechas y texto del DOM)
 
 conversion:
-  ffmpeg: "/opt/homebrew/bin/ffmpeg"
-  crf: 20                     # Calidad (18-23 recomendado)
-  preset: "fast"
+  ffmpeg: "/opt/homebrew/bin/ffmpeg"   # ajustar segun lo que reporto el setup
+  ffprobe: "/opt/homebrew/bin/ffprobe"
+  crf: 20               # calidad de video (18 = muy alta, 28 = menor calidad, 20 es buen balance)
 
 output:
-  base_dir: "output"          # Puede ser ruta absoluta
+  base_dir: "output"    # puede ser ruta absoluta para guardar fuera del toolkit
 ```
 
-Si hay bloqueos o rate limiting, aumentar delays y reducir batch_size.
+### Si la plataforma bloquea o redirige a login muy seguido
 
----
-
-## Estructura del proyecto
-
+```yaml
+rate_limits:
+  instagram:
+    scrape_delay: [12, 25]     # subir los numeros
+    batch_size: 25             # bajar el batch
+    batch_pause: [240, 360]    # subir la pausa
 ```
-social-toolkit/
-├── cli.py                        # Entry point unico
-├── config.yaml                   # Configuracion global
-├── requirements.txt
-├── setup.sh
-│
-├── shared/
-│   ├── browser.py                # Playwright persistent context
-│   ├── cookies.py                # Export cookies Netscape format
-│   ├── media_downloader.py       # Cache → browser → yt-dlp (imagenes + videos)
-│   ├── downloader.py             # yt-dlp wrapper (legacy)
-│   ├── converter.py              # ffmpeg VP9→H.264
-│   ├── rate_limiter.py           # Delays aleatorios + batch pauses
-│   ├── output.py                 # CSV/JSON estandarizados
-│   ├── config.py                 # Carga config.yaml
-│   └── utils.py                  # Helpers: sanitize, timestamps, etc.
-│
-├── platforms/
-│   ├── instagram/
-│   │   ├── profile_scraper.py    # Scroll del grid de posts
-│   │   ├── post_scraper.py       # OG tags + DOM → engagement
-│   │   ├── snapshot.py           # Orquestador del pipeline
-│   │   └── models.py
-│   ├── facebook/
-│   │   ├── page_scraper.py       # Scroll del feed
-│   │   ├── post_scraper.py       # DOM: caption, fecha, engagement
-│   │   ├── snapshot.py
-│   │   └── models.py
-│   ├── tiktok/
-│   │   ├── profile_scraper.py    # Playwright scroll
-│   │   ├── video_scraper.py      # Metadata via yt-dlp
-│   │   ├── snapshot.py
-│   │   └── models.py
-│   ├── youtube/
-│   │   ├── channel_scraper.py    # Descubre videos via yt-dlp
-│   │   ├── video_scraper.py      # Metadata via yt-dlp
-│   │   ├── snapshot.py
-│   │   └── models.py
-│   └── twitter/
-│       ├── profile_scraper.py
-│       ├── post_scraper.py
-│       ├── snapshot.py
-│       └── models.py
-│
-└── tests/
-```
-
----
-
-## Agregar una nueva plataforma
-
-1. Crear `platforms/nueva/` con `__init__.py`, `models.py`, scraper(s), `snapshot.py`
-2. Agregar `nueva:` en `config.yaml` bajo `rate_limits:`
-3. Registrar subcomandos en `cli.py` (copiar patron de cualquier plataforma)
-4. Reutilizar de `shared/` sin modificar: `browser.py`, `media_downloader.py`, `converter.py`, `output.py`, `rate_limiter.py`
 
 ---
 
 ## Usar en un nuevo proyecto
 
 ```bash
-# Desde copia local
-cp -R social-toolkit /nuevo/proyecto/
-cd /nuevo/proyecto/social-toolkit
+# Copiar el toolkit
+cp -R social-toolkit /ruta/nuevo-proyecto/
+
+cd /ruta/nuevo-proyecto/social-toolkit
 bash setup.sh
 
 # Importar sesion existente para no re-hacer login
-bash setup.sh /proyecto-anterior/social-toolkit/browser_profile
+bash setup.sh /ruta/a/otro-proyecto/social-toolkit/browser_profile
+```
 
-# Guardar output en otro lugar
-# En config.yaml:
-# output:
-#   base_dir: "/ruta/absoluta/a/datos"
+Para guardar los datos en otra ubicacion sin mover el toolkit:
+```yaml
+# config.yaml
+output:
+  base_dir: "/ruta/absoluta/donde/guardar/datos"
 ```
 
 ---
@@ -319,23 +300,33 @@ bash setup.sh /proyecto-anterior/social-toolkit/browser_profile
 
 **Sesion expirada / redirige a login**
 ```bash
+# Correr cualquier comando — se abre el browser para re-loguearse
 venv/bin/python3 cli.py instagram discover @cualquier_cuenta
-# Se abre browser → login manual → Enter
 ```
 
-**yt-dlp falla con videos**
+**yt-dlp falla descargando videos**
 ```bash
 venv/bin/pip install -q --upgrade yt-dlp
-venv/bin/python3 cli.py cookies export   # re-exportar cookies
+venv/bin/python3 cli.py cookies export
 ```
 
 **Videos no se reproducen en QuickTime (macOS)**
+
+Instagram y TikTok entregan videos en VP9, incompatible con QuickTime:
 ```bash
 venv/bin/python3 cli.py convert output/instagram/@username/media/
 ```
 
-**Scraping interrumpido a mitad**
-Volver a ejecutar el mismo comando. El pipeline detecta lo procesado y continua desde donde quedo.
+**El proceso se colgó / no avanza**
+
+Los delays son largos por diseño (para no ser detectado). En la terminal deberia ver output como `[47/390] ABC123 -> 2024-03-15 L:4200`. Si no hay output por mas de 5 minutos, Ctrl+C y volver a correr — continua desde donde quedo.
+
+**"No hay metadata" o "0 posts"**
+
+El perfil puede ser privado, o la sesion expiro. Verificar con:
+```bash
+venv/bin/python3 cli.py instagram discover @cuenta --max-posts 5
+```
 
 ---
 
@@ -343,7 +334,7 @@ Volver a ejecutar el mismo comando. El pipeline detecta lo procesado y continua 
 
 | Libreria | Uso |
 |----------|-----|
-| `playwright >= 1.40` | Browser automation con JS renderizado |
-| `yt-dlp >= 2024.1` | Descarga de videos (YouTube, TikTok, Instagram, Facebook, etc.) |
-| `pyyaml >= 6.0` | Lectura de config.yaml |
-| `ffmpeg` (sistema) | Conversion de codecs |
+| `playwright >= 1.40` | Browser automation (scraping con JavaScript renderizado) |
+| `yt-dlp >= 2024.1` | Descarga de videos |
+| `pyyaml >= 6.0` | Lectura de `config.yaml` |
+| `ffmpeg` (sistema) | Conversion de codecs VP9→H.264 |

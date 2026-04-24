@@ -1,7 +1,14 @@
 # Social Media Toolkit — Contexto para Qwen y modelos alternativos
 
-**Archivo maestro:**
-→ [`AI_CONTEXT.md`](./AI_CONTEXT.md) — todo lo necesario para trabajar en este repositorio
+## Mapa de documentación
+
+| Archivo | Para quién | Contenido |
+|---------|-----------|-----------|
+| [`README.md`](./README.md) | Usuarios humanos | Instalación, primer uso, comandos, troubleshooting |
+| [`AI_CONTEXT.md`](./AI_CONTEXT.md) | Agentes de IA | Arquitectura completa, pipeline, reglas, cómo extender |
+
+**Antes de modificar código**: leer `AI_CONTEXT.md` completo.
+**Si el usuario pregunta cómo usar el toolkit**: referirse a `README.md`.
 
 ---
 
@@ -21,3 +28,4 @@ Toolkit Python CLI con 5 plataformas de redes sociales. El pipeline va:
 3. Seguir el patrón de las plataformas existentes al agregar una nueva
 4. Rate limits siempre desde `config.yaml`, nunca hardcodeados
 5. Media siempre en `media/`, no en `videos/` (ese es el directorio legacy)
+6. Documentación de uso → `README.md`. Documentación de arquitectura → `AI_CONTEXT.md`. Sin duplicar.
